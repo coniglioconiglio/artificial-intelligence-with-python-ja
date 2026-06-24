@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Minimal local-HTML to Lambda Function URL to Amazon Bedrock chat PoC.
+
+Parameters:
+  BedrockRegion:
+    Type: String
+    Default: ap-northeast-1
+    Description: AWS region where Amazon Bedrock Runtime is called.
+  BedrockModelId:
+    Type: String
+    Default: anthropic.claude-3-haiku-20240307-v1:0
+    Description: Amazon Bedrock model ID used by Converse API.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Architectures:
+      - x86_64
+
+Resources:
+  GennaiAiChatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-gennai-ai-chat'
+      CodeUri: ../backend/
+      Handler: lambda_function.lambda_handler
+      Environment:
+        Variables:
+          BEDROCK_REGION: !Ref BedrockRegion
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: !Sub 'arn:${AWS::Partition}:bedrock:${BedrockRegion}::foundation-model/*'
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - '*'
+          AllowHeaders:
+            - content-type
+          AllowMethods:
+            - POST
+            - OPTIONS
+
+Outputs:
+  GennaiAiChatFunctionUrl:
+    Description: Lambda Function URL for the local HTML chat client.
+    Value: !GetAtt GennaiAiChatFunctionUrl.FunctionUrl
