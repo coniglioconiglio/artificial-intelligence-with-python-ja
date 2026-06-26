@@ -1,169 +1,152 @@
-# PythonによるAIプログラミング入門
+# PythonによるAIプログラミング入門 / 源内AI Bedrock PoC
 
----
+本リポジトリは、書籍『PythonによるAIプログラミング入門』のサンプルコードに加えて、AWS Lambda Function URL と Amazon Bedrock を使った最小構成の「源内AI」チャットPoCを含みます。
 
-![表紙](artificial-intelligence-with-python-ja.png)
+## 追加したPoCの構成
 
----
-
-本リポジトリはオライリー・ジャパン発行書籍『[PythonによるAIプログラミング入門](http://www.oreilly.co.jp/books/9784873118727/)』（原書名『[Artificial Intelligence with Python](https://www.packtpub.com/big-data-and-business-intelligence/artificial-intelligence-python)』）のサポートサイトです。
-
-
-## サンプルコード
-
-### ファイル構成
-
-|フォルダ名   |説明  |
-|:--          |:--   |
-|`Chapter 1`  |1章で使用するデータと`.ipynb`形式のノートブック   |
-|`...`        |`...`                                             |
-|`Chapter 16` |16章で使用するデータと`.ipynb`形式のノートブック  |
-|`Appendix A` |付録Aで使用するデータと`.ipynb`形式のノートブック |
-
-サンプルコードの解説は本書籍をご覧ください。
-
-## Pythonと外部ライブラリ
-
-ソースコードを実行するには、下記のソフトウェアが必要です。
-
-* Python 3
-* NumPy
-* SciPy
-* Matplotlib
-* Jupyter Notebook
-
-本書では、以下の環境で動作確認しました。
-
-* Windows 10
-* Anaconda3（Python 3.6, 3.7）
-
-Anacondaでは、次のパッケージはインストール済みです。
-
-```
-numpy
-scipy
-scikit-learn
-matplotlib
-jupyter
-sympy
-nltk
-pandas
+```text
+ローカルPCのブラウザ
+  └─ frontend/index.html（単体HTML。Python不要）
+      └─ fetch POST
+          └─ AWS Lambda Function URL（AuthType NONE / CORS *）
+              └─ backend/lambda_function.py
+                  └─ Amazon Bedrock Converse API
 ```
 
-Anacondaでパッケージを追加する場合には、`pip`よりも`conda`を優先して使います。
-`conda install`でインストールできるパッケージは次のとおりです。
+エージェント構成は `backend/agent_config.py` にまとめています。
 
-```
-gensim
-cvxopt
-opencv
-tensorflow
-```
+- **Character**: 「源内AIデモ用の行政・社内説明向けアシスタント」という人格・口調
+- **Provider**: 現在時刻、利用目的、PoC上の注意事項
+- **Action**: 通常チャット、構成説明、デプロイ説明の簡易ルーティング
 
-`pip install`でインストールする必要があるパッケージは次のとおりです。
+## 前提条件
 
-```
-pandas_datareader
-kanren
-simpleai
-deap
-easyai
-hmmlearn
-pystruct
-neurolab
-gym
-```
+- AWSアカウントを利用できること
+- AWS CloudShellを利用すること
+- AWS SAM CLIが使えること（CloudShellには多くの環境でプリインストールされています）
+- Amazon Bedrockで利用する対象モデルが有効化されていること
+  - AWS Bedrockで対象モデルの利用申請が必要な場合があります。
+  - 例: `anthropic.claude-3-haiku-20240307-v1:0`
+- 社内PCにはPythonをインストールしません。ローカルでは `frontend/index.html` をブラウザで開くだけです。
 
-PyPIにあるpystruct 0.3.2はPython 3.7に対応していないため、インストールに失敗します。古いCythonによって生成された`src/utils.c`がPython3.7と互換性がないためです。次のようにソースファイルからインストールしてください。インストールにはCコンパイラが必要です。Windowsの場合は、Visual Studio 2017コミュニティー版をインストールしておいてください。
+## ディレクトリ
 
-1. https://github.com/pystruct/pystruct を開き、[Clone or Download]をクリックしてソースファイルを取得します。
-
-2. ソースファイルのあるディレクトリに移動してから、次のようにCythonを実行して、`src/utils.c`を生成します。
-```
-cd src
-cython utils.pyx 
+```text
+backend/
+  agent_config.py      # Character / Provider / Action 定義
+  lambda_function.py   # Lambda Function URL handler / Bedrock Converse呼び出し
+frontend/
+  index.html           # ローカルで開ける単体HTMLチャットUI
+infra/
+  template.yaml        # AWS SAMテンプレート
 ```
 
-3. 元のディレクトリに戻って、パッケージをインストールします。
-```
-cd ..
-python setup.py install
-```
+## デプロイ手順（AWS CloudShell）
 
-AIは進歩が激しいため、頻繁にパッケージがバージョンアップされます。
-そのため本書のサンプルコードを実行すると、警告やエラーが表示されることがあります。
-そのような場合には、まずパッケージのバージョンを最新化してください。
-パッケージのバージョンアップは、次のコマンドで行います。
-
-```
-// pipの場合：
-$ pip install -U パッケージ名
-
-// Anacondaの場合：
-$ conda update パッケージ名
-```
-
-APIがdeprecated（廃止予定）であるという警告が表示された場合には、
-警告メッセージを読んで新しいAPIに書き換えなければならないこともあります。
-
-
-## 実行方法
-
-端末に次のように入力して、`jupyter notebook`を起動してください。
+### 1. リポジトリをclone
 
 ```bash
-$ jupyter notebook
+git clone <このリポジトリのURL>
+cd artificial-intelligence-with-python-ja
 ```
 
-すると、Webブラウザが起動してjupyterのページが開き、
-jupyterを起動したフォルダのファイル一覧が表示されます。
+### 2. SAMテンプレートを確認
 
-サンプルコードを開き、
-画面上部の［Cell］メニューから選択するか画面上部のボタンを押して実行します。
-
-右上のメニューから［New▼］→［Python 3］を選択すると、
-「Untitled」タブが新たに開きます。
-`In [ ]:`の右側にPythonのコードを記述し、
-画面上部の［Cell］メニューから選択するか画面上部のボタンを押して実行することもできます。
-
-## 正誤表
-
-下記の誤りがありました。お詫びして訂正いたします。
-
-本ページに掲載されていない誤植など間違いを見つけた方は、japan@oreilly.co.jpまでお知らせください。
-
-### 第2刷まで
-
-#### ■15章 P.367 18行目
-**誤**
-```
-acc = self.quantize5(obs[2], 1.0, 0.2)
-```
-**正**
-```
-acc = self.quantize5(obs[3], 1.0, 0.2)
+```bash
+cd infra
+sam validate
 ```
 
-### 第1刷
+### 3. ビルド
 
-#### ■14章 P.342 訳注
-**誤**
-```
-C:\Users\aizo\Anaconda3\lib\site-packages\nurolab\__init__.py
-```
-**正**
-```
-C:\Users\aizo\Anaconda3\lib\site-packages\neurolab\__init__.py
+```bash
+sam build
 ```
 
-#### ■A.1 P.391 コード
-**誤**
+### 4. 初回デプロイ
+
+```bash
+sam deploy --guided
 ```
-_, contours, _ = cv2.findContours(gray_image, cv2.RETR_TREE,
-                               cv2.CHAIN_APPROX_SIMPLE)
+
+対話では、例えば次のように指定します。
+
+- **Stack Name**: `gennai-ai-bedrock-poc`
+- **AWS Region**: Lambdaを置きたいリージョン（例: `ap-northeast-1`）
+- **Parameter BedrockRegion**: Bedrock Runtimeを呼び出すリージョン（例: `ap-northeast-1`）
+- **Parameter BedrockModelId**: 利用するBedrockモデルID（例: `anthropic.claude-3-haiku-20240307-v1:0`）
+- **Confirm changes before deploy**: `Y` または `N`
+- **Allow SAM CLI IAM role creation**: `Y`
+- **Disable rollback**: 任意
+- **Save arguments to configuration file**: `Y`
+
+デプロイが成功すると、Outputsに `GennaiAiChatFunctionUrl` が表示されます。
+
+### 5. 2回目以降のデプロイ
+
+初回に設定を保存した場合は、次のコマンドで再デプロイできます。
+
+```bash
+sam build
+sam deploy
 ```
-**正**
-```                               
-contours, _ = cv2.findContours(gray_image, cv2.RETR_TREE,
-                               cv2.CHAIN_APPROX_SIMPLE)[-2:]
+
+## ローカルHTMLから使う
+
+1. 社内PCで `frontend/index.html` をダブルクリックしてブラウザで開きます。
+2. `Lambda Function URL` 欄に、SAMデプロイ後の `GennaiAiChatFunctionUrl` を貼り付けます。
+3. メッセージ欄に質問を入力して送信します。
+
+例:
+
+```text
+このPoCの構成を説明してください
 ```
+
+## curlで動作確認
+
+CloudShellまたは任意の端末から、Function URLを環境変数に入れて確認します。
+
+```bash
+export FUNCTION_URL='https://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.lambda-url.ap-northeast-1.on.aws/'
+```
+
+`message` 形式:
+
+```bash
+curl -sS -X POST "$FUNCTION_URL" \
+  -H 'content-type: application/json' \
+  -d '{"message":"このPoCの構成を説明してください"}'
+```
+
+`inputs.input_text` 形式:
+
+```bash
+curl -sS -X POST "$FUNCTION_URL" \
+  -H 'content-type: application/json' \
+  -d '{"inputs":{"input_text":"デプロイ手順を教えてください"}}'
+```
+
+どちらも次のように `reply` と `outputs` の両方を含むJSONを返します。
+
+```json
+{
+  "reply": "...",
+  "outputs": "..."
+}
+```
+
+## セキュリティ上の注意
+
+このPoCでは、簡単にローカルHTMLから呼び出せるように次の設定を使っています。
+
+- Lambda Function URL `AuthType: NONE`
+- CORS `*`
+
+本番利用では、そのまま公開しないでください。API Gateway、Cognito、IAM認証、WAF、アクセス元制限、監査ログ、レート制限、コスト監視などを検討してください。
+
+また、AWSアクセスキー、APIキー、秘密情報、`.env` ファイルなどはリポジトリにコミットしないでください。
+
+## 既存の書籍サンプルコードについて
+
+書籍サンプルコードの実行には、Python、NumPy、SciPy、Matplotlib、Jupyter Notebookなどが必要です。PoCチャットのローカル利用には、これらを社内PCへインストールする必要はありません。

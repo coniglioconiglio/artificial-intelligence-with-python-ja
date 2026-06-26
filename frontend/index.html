@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>源内AI Bedrock PoC Chat</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; background: #f7f7fb; color: #202033; }
+    h1 { font-size: 1.5rem; }
+    label { display: block; font-weight: 700; margin-top: 16px; }
+    input, textarea, button { font: inherit; box-sizing: border-box; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #c9cad6; border-radius: 8px; background: white; }
+    textarea { min-height: 90px; resize: vertical; }
+    button { margin-top: 12px; padding: 10px 18px; border: 0; border-radius: 8px; background: #3157d5; color: white; cursor: pointer; }
+    button:disabled { background: #999; cursor: wait; }
+    #chat { margin-top: 20px; display: grid; gap: 12px; }
+    .msg { padding: 12px; border-radius: 10px; white-space: pre-wrap; line-height: 1.55; }
+    .user { background: #e7edff; border-left: 4px solid #3157d5; }
+    .bot { background: #fff; border-left: 4px solid #36a269; box-shadow: 0 1px 5px #0001; }
+    .error { background: #fff0f0; border-left: 4px solid #d33; }
+    .hint { color: #666; font-size: .92rem; }
+  </style>
+</head>
+<body>
+  <h1>源内AI Bedrock PoC Chat</h1>
+  <p class="hint">AWS SAMでデプロイしたLambda Function URLを貼り付け、ローカルHTMLから直接チャットします。</p>
+
+  <label for="url">Lambda Function URL</label>
+  <input id="url" type="url" placeholder="https://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.lambda-url.ap-northeast-1.on.aws/" />
+
+  <label for="message">メッセージ</label>
+  <textarea id="message" placeholder="例: このPoCの構成を説明してください"></textarea>
+  <button id="send">送信</button>
+
+  <div id="chat" aria-live="polite"></div>
+
+  <script>
+    const urlInput = document.getElementById('url');
+    const messageInput = document.getElementById('message');
+    const sendButton = document.getElementById('send');
+    const chat = document.getElementById('chat');
+
+    urlInput.value = localStorage.getItem('lambdaFunctionUrl') || '';
+
+    function addMessage(text, className) {
+      const div = document.createElement('div');
+      div.className = `msg ${className}`;
+      div.textContent = text;
+      chat.appendChild(div);
+      div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+
+    async function sendMessage() {
+      const endpoint = urlInput.value.trim();
+      const message = messageInput.value.trim();
+      if (!endpoint || !message) {
+        addMessage('Function URLとメッセージを入力してください。', 'error');
+        return;
+      }
+      localStorage.setItem('lambdaFunctionUrl', endpoint);
+      addMessage(message, 'user');
+      messageInput.value = '';
+      sendButton.disabled = true;
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        addMessage(data.reply || data.outputs || '(空の応答)', 'bot');
+      } catch (err) {
+        addMessage(`エラー: ${err.message}`, 'error');
+      } finally {
+        sendButton.disabled = false;
+      }
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (event) => {
+      if (event.ctrlKey && event.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>
