@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>FAQ検索</title>
+<style>
+body { font-family: sans-serif; }
+.faq-item { margin-bottom: 1em; }
+.question { font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>FAQ検索フォーム</h1>
+<input type="text" id="search" placeholder="キーワードを入力" style="width:100%; padding:8px;">
+<div id="faq-list">
+  <div class="faq-item">
+    <div class="question">Q1: サンプルコードはどこで取得できますか？</div>
+    <div class="answer">このリポジトリの各Chapterフォルダにあります。</div>
+  </div>
+  <div class="faq-item">
+    <div class="question">Q2: 必要なPythonのバージョンは？</div>
+    <div class="answer">Python 3系で動作確認しています。</div>
+  </div>
+  <div class="faq-item">
+    <div class="question">Q3: 依存ライブラリは何ですか？</div>
+    <div class="answer">READMEの「Pythonと外部ライブラリ」を参照してください。</div>
+  </div>
+</div>
+<script>
+const searchInput = document.getElementById('search');
+searchInput.addEventListener('input', function() {
+  const term = this.value.toLowerCase();
+  document.querySelectorAll('.faq-item').forEach(function(item) {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(term) ? '' : 'none';
+  });
+});
+</script>
+</body>
+</html>
